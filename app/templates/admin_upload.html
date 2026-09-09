@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ event_name }} — Organisateur</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <h1>Ajouter les photos</h1>
+    <p class="subtitle">Sélectionne toutes les photos de l'événement (jusqu'à {{ max_photos }} au total).</p>
+
+    <div class="stats">
+      <div class="stat"><b id="statPhotos">{{ stats.n_photos }}</b><span>photos indexées</span></div>
+      <div class="stat"><b id="statFaces">{{ stats.n_faces }}</b><span>visages détectés</span></div>
+    </div>
+
+    <div class="card">
+      <div id="dropzone">Clique ici pour choisir des photos (sélection multiple possible)</div>
+      <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+      <button id="startBtn" disabled>Envoyer les photos</button>
+      <div id="progress"></div>
+    </div>
+    <p class="footer-note">Le traitement (détection de visages) prend quelques secondes par lot. Ne
+    ferme pas cette page pendant l'envoi.</p>
+  </div>
+
+  <script>
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const startBtn = document.getElementById('startBtn');
+    const progress = document.getElementById('progress');
+    const statPhotos = document.getElementById('statPhotos');
+    const statFaces = document.getElementById('statFaces');
+
+    let files = [];
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+      files = Array.from(fileInput.files);
+      dropzone.textContent = files.length + ' photo(s) sélectionnée(s)';
+      startBtn.disabled = files.length === 0;
+    });
+
+    const BATCH_SIZE = 12;
+
+    startBtn.addEventListener('click', async () => {
+      startBtn.disabled = true;
+      let done = 0, totalProcessed = 0, totalSkipped = 0;
+      const total = files.length;
+      progress.style.display = 'block';
+
+      for (let i = 0; i < total; i += BATCH_SIZE) {
+        const batch = files.slice(i, i + BATCH_SIZE);
+        const fd = new FormData();
+        batch.forEach(f => fd.append('files', f));
+
+        progress.textContent = `Envoi en cours : ${done}/${total} photos…`;
+        try {
+          const res = await fetch('/admin/upload', { method: 'POST', body: fd });
+          const data = await res.json();
+          if (res.ok) {
+            totalProcessed += data.processed;
+            totalSkipped += data.skipped;
+            statPhotos.textContent = data.stats.n_photos;
+            statFaces.textContent = data.stats.n_faces;
+          } else {
+            progress.textContent = 'Erreur : ' + (data.detail || res.statusText);
+            return;
+          }
+        } catch (e) {
+          progress.textContent = 'Erreur réseau, réessaie.';
+          return;
+        }
+        done += batch.length;
+      }
+
+      progress.textContent = `Terminé : ${totalProcessed} photo(s) ajoutée(s)` +
+        (totalSkipped ? `, ${totalSkipped} ignorée(s) (illisibles).` : '.');
+      startBtn.disabled = false;
+      fileInput.value = '';
+      files = [];
+      dropzone.textContent = 'Clique ici pour choisir d\'autres photos';
+    });
+  </script>
+</body>
+</html>

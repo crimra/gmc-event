@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ event_name }} — Résultats</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="wrap wide">
+    <h1>Tes photos</h1>
+    {% if error %}
+      <p class="subtitle"></p>
+      <div class="card">
+        <div class="error">{{ error }}</div>
+        <a class="btn" href="/invite">Réessayer avec une autre photo</a>
+      </div>
+    {% elif results|length == 0 %}
+      <div class="empty">
+        <p>Aucune photo trouvée pour l'instant.</p>
+        <p>L'organisateur ajoute peut-être encore des photos — reviens plus tard, ou essaie avec un
+        autre selfie plus net.</p>
+      </div>
+      <a class="btn" href="/invite" style="margin-top:16px;">Réessayer</a>
+    {% else %}
+      <p class="subtitle">{{ results|length }} photo(s) trouvée(s). Touche une photo pour l'ouvrir en
+      grand et l'enregistrer.</p>
+      <div class="grid">
+        {% for r in results %}
+        <a href="/photo/{{ r.photo_id }}" target="_blank" rel="noopener">
+          <img src="/thumb/{{ r.thumb_id }}" loading="lazy" alt="photo">
+          <span class="score">{{ (r.score * 100) | round | int }}%</span>
+        </a>
+        {% endfor %}
+      </div>
+      <a class="btn" href="/invite" style="margin-top:24px;">Essayer un autre selfie</a>
+    {% endif %}
+  </div>
+</body>
+</html>
