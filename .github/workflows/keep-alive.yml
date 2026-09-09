@@ -1,0 +1,26 @@
+name: Keep Render awake
+
+# Ping the app every 10 minutes so the free Render instance doesn't spin
+# down from inactivity (a sleeping free instance takes ~50s to wake up on
+# the next real visitor). Only actually pings between 2026-09-09 and
+# 2026-09-16 (the event week) -- outside that window the job exits early
+# without doing anything. Safe to delete this file once it's no longer
+# needed.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the app if we're in the event window
+        run: |
+          today=$(date -u +%Y-%m-%d)
+          if [[ "$today" < "2026-09-09" || "$today" > "2026-09-16" ]]; then
+            echo "Outside the event window ($today) -- skipping."
+            exit 0
+          fi
+          curl -fsS "https://gmc-event-gallery.onrender.com/healthz"
