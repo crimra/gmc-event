@@ -53,7 +53,7 @@
           {% else %}
             <div class="gallery-grid" id="galleryGrid">
               {% for photo in photos %}
-              <a href="/photo/{{ photo.photo_id }}" target="_blank" rel="noopener" class="gallery-tile">
+              <a href="/photo/{{ photo.photo_id }}" class="gallery-tile" data-photo-id="{{ photo.photo_id }}" data-filename="{{ photo.filename }}">
                 <img src="/thumb/{{ photo.thumb_id }}" loading="lazy" alt="{{ photo.filename }}">
                 <span class="cap">{{ photo.filename }}</span>
               </a>
@@ -64,6 +64,12 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <div class="lightbox" id="lightbox" hidden>
+    <button type="button" class="lightbox-close" id="lightboxClose" aria-label="Fermer">×</button>
+    <img id="lightboxImg" src="" alt="">
+    <a class="btn-gold lightbox-download" id="lightboxDownload" href="#" download>Télécharger cette photo</a>
   </div>
 
   <script>
@@ -110,10 +116,18 @@
           for (const photo of data.photos) {
             const a = document.createElement('a');
             a.href = `/photo/${photo.photo_id}`;
-            a.target = '_blank';
-            a.rel = 'noopener';
             a.className = 'gallery-tile';
-            a.innerHTML = `<img src="/thumb/${photo.thumb_id}" loading="lazy" alt="${photo.filename}"><span class="cap">${photo.filename}</span>`;
+            a.dataset.photoId = photo.photo_id;
+            a.dataset.filename = photo.filename;
+            const img = document.createElement('img');
+            img.src = `/thumb/${photo.thumb_id}`;
+            img.loading = 'lazy';
+            img.alt = photo.filename;
+            const cap = document.createElement('span');
+            cap.className = 'cap';
+            cap.textContent = photo.filename;
+            a.appendChild(img);
+            a.appendChild(cap);
             grid.appendChild(a);
           }
           loadMoreBtn.dataset.offset = offset + data.photos.length;
@@ -129,6 +143,32 @@
         }
       });
     }
+
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+    const lightboxDownload = document.getElementById('lightboxDownload');
+
+    function openLightbox(photoId, filename) {
+      lightboxImg.src = `/photo/${photoId}`;
+      lightboxDownload.href = `/photo/${photoId}`;
+      lightboxDownload.download = filename || 'photo.jpg';
+      lightbox.hidden = false;
+    }
+    function closeLightbox() {
+      lightbox.hidden = true;
+      lightboxImg.src = '';
+    }
+
+    document.addEventListener('click', (e) => {
+      const tile = e.target.closest('.gallery-tile');
+      if (tile) {
+        e.preventDefault();
+        openLightbox(tile.dataset.photoId, tile.dataset.filename);
+      }
+    });
+    document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
+    lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
   </script>
 </body>
 </html>

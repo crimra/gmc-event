@@ -211,7 +211,14 @@ async def search(request: Request, selfie: UploadFile = File(...), _=Depends(req
     for photo_id, score in matches:
         entry = face_index.photos.get(photo_id)
         if entry:
-            results.append({"photo_id": photo_id, "thumb_id": entry.thumb_id, "score": round(score * 100)})
+            results.append(
+                {
+                    "photo_id": photo_id,
+                    "thumb_id": entry.thumb_id,
+                    "filename": entry.original_filename,
+                    "score": round(score * 100),
+                }
+            )
 
     request.session["search_photo_ids"] = [r["photo_id"] for r in results]
 
