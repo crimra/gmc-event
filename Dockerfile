@@ -14,8 +14,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 
 # Hugging Face Spaces (SDK Docker) route le trafic vers le port 7860 par défaut.
+# Render (et d'autres hébergeurs) imposent leur propre port via la variable $PORT.
 ENV DATA_DIR=/data
 RUN mkdir -p /data/photos /data/thumbs
 EXPOSE 7860
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
