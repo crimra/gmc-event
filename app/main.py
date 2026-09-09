@@ -234,12 +234,7 @@ async def search(request: Request, selfie: UploadFile = File(...), _=Depends(req
     )
 
 
-@app.get("/download/zip")
-def download_zip(request: Request, _=Depends(require_guest)):
-    photo_ids = request.session.get("search_photo_ids") or []
-    if not photo_ids:
-        raise HTTPException(status_code=404, detail="Aucun résultat de recherche à télécharger.")
-
+def _zip_of_photos(photo_ids: list[str]) -> StreamingResponse:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as zf:
         for photo_id in photo_ids:
@@ -254,6 +249,22 @@ def download_zip(request: Request, _=Depends(require_guest)):
         media_type="application/zip",
         headers={"Content-Disposition": "attachment; filename=mes-photos.zip"},
     )
+
+
+@app.get("/download/zip")
+def download_zip(request: Request, _=Depends(require_guest)):
+    photo_ids = request.session.get("search_photo_ids") or []
+    if not photo_ids:
+        raise HTTPException(status_code=404, detail="Aucun résultat de recherche à télécharger.")
+    return _zip_of_photos(photo_ids)
+
+
+@app.post("/download/selection")
+def download_selection(request: Request, photo_ids: list[str] = Form(...), _=Depends(require_guest)):
+    valid_ids = [pid for pid in dict.fromkeys(photo_ids) if face_index.photo_exists(pid)]
+    if not valid_ids:
+        raise HTTPException(status_code=400, detail="Aucune photo valide sélectionnée.")
+    return _zip_of_photos(valid_ids)
 
 
 @app.get("/photo/{photo_id}")

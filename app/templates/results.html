@@ -65,6 +65,8 @@
 
   <div class="lightbox" id="lightbox" hidden>
     <button type="button" class="lightbox-close" id="lightboxClose" aria-label="Fermer">×</button>
+    <button type="button" class="lightbox-nav lightbox-prev" id="lightboxPrev" aria-label="Photo précédente">‹</button>
+    <button type="button" class="lightbox-nav lightbox-next" id="lightboxNext" aria-label="Photo suivante">›</button>
     <div class="lightbox-status" id="lightboxStatus">Chargement…</div>
     <img id="lightboxImg" src="" alt="">
     <a class="btn-gold lightbox-download" id="lightboxDownload" href="#" download>Télécharger cette photo</a>
@@ -75,15 +77,40 @@
     const lightboxImg = document.getElementById('lightboxImg');
     const lightboxStatus = document.getElementById('lightboxStatus');
     const lightboxDownload = document.getElementById('lightboxDownload');
+    const lightboxPrev = document.getElementById('lightboxPrev');
+    const lightboxNext = document.getElementById('lightboxNext');
 
-    function openLightbox(photoId, filename) {
+    let currentTiles = [];
+    let currentIndex = -1;
+
+    function showCurrent() {
+      const tile = currentTiles[currentIndex];
+      if (!tile) return;
       lightboxImg.style.visibility = 'hidden';
       lightboxStatus.hidden = false;
       lightboxStatus.textContent = 'Chargement…';
-      lightboxImg.src = `/photo/${photoId}`;
-      lightboxDownload.href = `/photo/${photoId}`;
-      lightboxDownload.download = filename || 'photo.jpg';
+      lightboxImg.src = `/photo/${tile.dataset.photoId}`;
+      lightboxDownload.href = `/photo/${tile.dataset.photoId}`;
+      lightboxDownload.download = tile.dataset.filename || 'photo.jpg';
+      const multi = currentTiles.length > 1;
+      lightboxPrev.hidden = !multi;
+      lightboxNext.hidden = !multi;
+    }
+    function openLightboxAt(tiles, index) {
+      currentTiles = tiles;
+      currentIndex = index;
+      showCurrent();
       lightbox.hidden = false;
+    }
+    function showNext() {
+      if (currentTiles.length === 0) return;
+      currentIndex = (currentIndex + 1) % currentTiles.length;
+      showCurrent();
+    }
+    function showPrev() {
+      if (currentTiles.length === 0) return;
+      currentIndex = (currentIndex - 1 + currentTiles.length) % currentTiles.length;
+      showCurrent();
     }
     function closeLightbox() {
       lightbox.hidden = true;
@@ -103,12 +130,29 @@
       const tile = e.target.closest('.result-tile');
       if (tile) {
         e.preventDefault();
-        openLightbox(tile.dataset.photoId, tile.dataset.filename);
+        const tiles = Array.from(document.querySelectorAll('.result-tile'));
+        openLightboxAt(tiles, tiles.indexOf(tile));
       }
     });
     document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
+    lightboxPrev.addEventListener('click', showPrev);
+    lightboxNext.addEventListener('click', showNext);
     lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
+    document.addEventListener('keydown', (e) => {
+      if (lightbox.hidden) return;
+      if (e.key === 'Escape') closeLightbox();
+      else if (e.key === 'ArrowRight') showNext();
+      else if (e.key === 'ArrowLeft') showPrev();
+    });
+
+    let touchStartX = null;
+    lightbox.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; });
+    lightbox.addEventListener('touchend', (e) => {
+      if (touchStartX === null) return;
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(dx) > 40) { dx < 0 ? showNext() : showPrev(); }
+      touchStartX = null;
+    });
   </script>
 </body>
 </html>
