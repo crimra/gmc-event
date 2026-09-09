@@ -1,9 +1,11 @@
 FROM python:3.11-slim
 
-# Dépendances système nécessaires à OpenCV / onnxruntime
+# Dépendances système nécessaires à OpenCV / onnxruntime, et un compilateur
+# C++ pour l'extension Cython d'insightface (mesh_core_cython).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /code
