@@ -1,3 +1,12 @@
+---
+title: Galerie Événement
+emoji: 📸
+colorFrom: purple
+colorTo: pink
+sdk: docker
+pinned: false
+---
+
 # Galerie photo par reconnaissance faciale — 0€
 
 Une petite application qui permet à chaque invité d'un événement de retrouver
