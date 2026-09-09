@@ -306,6 +306,8 @@ def admin_auth(request: Request, password: str = Form(...)):
 @app.get("/admin/upload", response_class=HTMLResponse)
 def admin_upload_page(request: Request, _=Depends(require_admin)):
     stats = face_index.stats()
+    all_photos = _photo_list()
+    page = [_photo_dict(p) for p in all_photos[:PHOTOS_PAGE_SIZE]]
     return templates.TemplateResponse(
         request,
         "admin_upload.html",
@@ -314,8 +316,36 @@ def admin_upload_page(request: Request, _=Depends(require_admin)):
             "stats": stats,
             "max_photos": MAX_PHOTOS,
             "batches": face_index.recent_batches(5),
+            "photos": page,
+            "total_photos": len(all_photos),
+            "page_size": PHOTOS_PAGE_SIZE,
+            "has_more": len(all_photos) > PHOTOS_PAGE_SIZE,
         },
     )
+
+
+@app.get("/admin/api/photos")
+def admin_api_photos(offset: int = 0, limit: int = PHOTOS_PAGE_SIZE, _=Depends(require_admin)):
+    all_photos = _photo_list()
+    offset = max(0, offset)
+    limit = max(1, min(limit, 100))
+    page = all_photos[offset : offset + limit]
+    return JSONResponse(
+        {
+            "photos": [_photo_dict(p) for p in page],
+            "has_more": offset + limit < len(all_photos),
+            "total": len(all_photos),
+        }
+    )
+
+
+@app.delete("/admin/photo/{photo_id}")
+def admin_delete_photo(photo_id: str, _=Depends(require_admin)):
+    entry = face_index.remove_photo(photo_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Photo introuvable.")
+    storage.commit_delete(photo_id, entry.thumb_id, face_index.to_bytes())
+    return JSONResponse({"deleted": photo_id, "stats": face_index.stats()})
 
 
 def _make_thumb_bytes(img_bgr) -> bytes:
@@ -336,6 +366,7 @@ async def admin_upload(request: Request, files: list[UploadFile] = File(...), _=
         raise HTTPException(status_code=400, detail=f"Limite de {MAX_PHOTOS} photos dépassée.")
 
     processed, skipped, faces_in_batch = 0, 0, 0
+    new_photo_ids, new_thumb_ids = [], []
     for f in files:
         raw = await f.read()
         try:
@@ -350,6 +381,8 @@ async def admin_upload(request: Request, files: list[UploadFile] = File(...), _=
 
         storage.save_photo(photo_id, raw)
         storage.save_thumb(thumb_id, _make_thumb_bytes(img.copy()))
+        new_photo_ids.append(photo_id)
+        new_thumb_ids.append(thumb_id)
 
         faces = face_engine.detect_faces(img)
         embeddings = [fc.normed_embedding for fc in faces]
@@ -367,7 +400,10 @@ async def admin_upload(request: Request, files: list[UploadFile] = File(...), _=
             n_faces=faces_in_batch,
         )
 
-    storage.save_index_bytes(face_index.to_bytes())
+    # Un seul commit distant pour tout le lot (photos + miniatures + index),
+    # au lieu d'un commit par fichier -> reste sous la limite de commits/heure
+    # du plan gratuit Hugging Face.
+    storage.commit_uploads(new_photo_ids, new_thumb_ids, face_index.to_bytes())
 
     stats = face_index.stats()
     return JSONResponse(

@@ -71,6 +71,25 @@
               {% endif %}
             </div>
           </div>
+
+          <div class="section-heading" style="margin-top: 8px;">
+            <div class="title">Photos de la galerie</div>
+            <div class="count">{{ total_photos }}</div>
+          </div>
+          {% if photos|length == 0 %}
+            <div class="empty-note">Aucune photo pour l'instant.</div>
+          {% else %}
+            <div class="admin-photo-grid" id="adminPhotoGrid">
+              {% for photo in photos %}
+              <div class="admin-photo-tile" data-photo-id="{{ photo.photo_id }}">
+                <img src="/thumb/{{ photo.thumb_id }}" loading="lazy" alt="{{ photo.filename }}">
+                <button type="button" class="admin-photo-delete" aria-label="Supprimer cette photo">×</button>
+                <span class="cap">{{ photo.filename }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            <button type="button" class="btn-outline-green" id="adminLoadMoreBtn" data-offset="{{ photos|length }}" {% if not has_more %}hidden{% endif %}>Charger plus de photos</button>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -169,6 +188,80 @@
       files = [];
       dropzoneTitle.textContent = 'Sélectionner des photos';
     });
+
+    const adminGrid = document.getElementById('adminPhotoGrid');
+    if (adminGrid) {
+      adminGrid.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.admin-photo-delete');
+        if (!btn) return;
+        const tile = btn.closest('.admin-photo-tile');
+        const photoId = tile.dataset.photoId;
+        if (!confirm('Supprimer définitivement cette photo ? Cette action est irréversible.')) return;
+        tile.classList.add('removing');
+        btn.disabled = true;
+        try {
+          const res = await fetch(`/admin/photo/${photoId}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (res.ok) {
+            tile.remove();
+            statPhotos.textContent = data.stats.n_photos;
+            statFaces.textContent = data.stats.n_faces;
+          } else {
+            tile.classList.remove('removing');
+            btn.disabled = false;
+            alert(data.detail || 'Erreur lors de la suppression.');
+          }
+        } catch (err) {
+          tile.classList.remove('removing');
+          btn.disabled = false;
+          alert('Erreur réseau, réessaie.');
+        }
+      });
+    }
+
+    const adminLoadMoreBtn = document.getElementById('adminLoadMoreBtn');
+    if (adminLoadMoreBtn) {
+      adminLoadMoreBtn.addEventListener('click', async () => {
+        adminLoadMoreBtn.disabled = true;
+        adminLoadMoreBtn.textContent = 'Chargement…';
+        const offset = parseInt(adminLoadMoreBtn.dataset.offset, 10);
+        try {
+          const res = await fetch(`/admin/api/photos?offset=${offset}&limit={{ page_size }}`);
+          const data = await res.json();
+          for (const photo of data.photos) {
+            const tile = document.createElement('div');
+            tile.className = 'admin-photo-tile';
+            tile.dataset.photoId = photo.photo_id;
+            const img = document.createElement('img');
+            img.src = `/thumb/${photo.thumb_id}`;
+            img.loading = 'lazy';
+            img.alt = photo.filename;
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'admin-photo-delete';
+            delBtn.setAttribute('aria-label', 'Supprimer cette photo');
+            delBtn.textContent = '×';
+            const cap = document.createElement('span');
+            cap.className = 'cap';
+            cap.textContent = photo.filename;
+            tile.appendChild(img);
+            tile.appendChild(delBtn);
+            tile.appendChild(cap);
+            adminGrid.appendChild(tile);
+          }
+          adminLoadMoreBtn.dataset.offset = offset + data.photos.length;
+          if (!data.has_more) {
+            adminLoadMoreBtn.hidden = true;
+          } else {
+            adminLoadMoreBtn.disabled = false;
+            adminLoadMoreBtn.textContent = 'Charger plus de photos';
+          }
+        } catch (e) {
+          adminLoadMoreBtn.disabled = false;
+          adminLoadMoreBtn.textContent = 'Réessayer';
+        }
+      });
+    }
   </script>
 </body>
 </html>

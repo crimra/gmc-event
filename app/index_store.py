@@ -68,6 +68,15 @@ class FaceIndex:
     def photo_exists(self, photo_id) -> bool:
         return photo_id in self.photos
 
+    def remove_photo(self, photo_id: str):
+        """Retire une photo et tous ses visages de l'index. Retourne l'entrée
+        supprimée (ou None si elle n'existait pas)."""
+        with self._lock:
+            entry = self.photos.pop(photo_id, None)
+            if entry is not None:
+                self.faces = [f for f in self.faces if f.photo_id != photo_id]
+            return entry
+
     def search(self, query_embedding: np.ndarray, threshold: float, top_k: int = 200):
         """Retourne les photos dont au moins un visage dépasse le seuil de similarité,
         triées par meilleur score décroissant (une entrée par photo, pas par visage)."""
