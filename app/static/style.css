@@ -364,6 +364,7 @@ input::placeholder { color: #A79778; }
   border: none; background: rgba(255,255,255,0.12); color: #fff; font-size: 22px; line-height: 1; cursor: pointer;
 }
 .lightbox-close:hover { background: rgba(255,255,255,0.22); }
+.lightbox-status { color: #fff; font-size: 14px; font-weight: 600; text-align: center; max-width: 280px; }
 .lightbox-download {
   position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
   width: auto; padding: 14px 28px; white-space: nowrap;

@@ -68,6 +68,7 @@
 
   <div class="lightbox" id="lightbox" hidden>
     <button type="button" class="lightbox-close" id="lightboxClose" aria-label="Fermer">×</button>
+    <div class="lightbox-status" id="lightboxStatus">Chargement…</div>
     <img id="lightboxImg" src="" alt="">
     <a class="btn-gold lightbox-download" id="lightboxDownload" href="#" download>Télécharger cette photo</a>
   </div>
@@ -146,9 +147,13 @@
 
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = document.getElementById('lightboxImg');
+    const lightboxStatus = document.getElementById('lightboxStatus');
     const lightboxDownload = document.getElementById('lightboxDownload');
 
     function openLightbox(photoId, filename) {
+      lightboxImg.style.visibility = 'hidden';
+      lightboxStatus.hidden = false;
+      lightboxStatus.textContent = 'Chargement…';
       lightboxImg.src = `/photo/${photoId}`;
       lightboxDownload.href = `/photo/${photoId}`;
       lightboxDownload.download = filename || 'photo.jpg';
@@ -158,6 +163,15 @@
       lightbox.hidden = true;
       lightboxImg.src = '';
     }
+    lightboxImg.addEventListener('load', () => {
+      lightboxStatus.hidden = true;
+      lightboxImg.style.visibility = 'visible';
+    });
+    lightboxImg.addEventListener('error', () => {
+      if (!lightboxImg.getAttribute('src')) return;
+      lightboxStatus.hidden = false;
+      lightboxStatus.textContent = 'Impossible de charger cette photo. Réessaie dans quelques secondes.';
+    });
 
     document.addEventListener('click', (e) => {
       const tile = e.target.closest('.gallery-tile');
