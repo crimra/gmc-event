@@ -4,37 +4,63 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ event_name }} — Résultats</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <div class="wrap wide">
-    <h1>Tes photos</h1>
-    {% if error %}
-      <p class="subtitle"></p>
-      <div class="card">
-        <div class="error">{{ error }}</div>
-        <a class="btn" href="/invite">Réessayer avec une autre photo</a>
+  <div class="page-wrap">
+    <div class="app-shell">
+      <div>
+        <div class="top-green">
+          <a class="back-link" href="/invite">← Retour à la galerie</a>
+          <div class="results-header-row">
+            <div class="results-icon">◎</div>
+            <div>
+              {% if error %}
+                <div class="results-title">Image non reconnue</div>
+                <div class="results-sub">{{ total_photos }} photos analysées</div>
+              {% elif results|length == 0 %}
+                <div class="results-title">Recherche terminée</div>
+                <div class="results-sub">{{ total_photos }} photos analysées</div>
+              {% else %}
+                <div class="results-title">Tu es sur {{ results|length }} photo{{ 's' if results|length != 1 else '' }}</div>
+                <div class="results-sub">Similarité de {{ results[-1].score }} % à {{ results[0].score }} % · {{ total_photos }} photos analysées</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        {% if error %}
+          <div class="section-body">
+            <div class="error-banner">{{ error }}</div>
+            <a class="btn-outline-tan" href="/invite?selfie=1" style="margin-top: 10px;">Réessayer avec une autre photo</a>
+          </div>
+        {% elif results|length == 0 %}
+          <div class="empty-state">
+            <div class="empty-icon">◎</div>
+            <div class="empty-title">Aucune photo trouvée</div>
+            <div class="empty-desc">On n'a pas reconnu ton visage sur les photos indexées. Réessaie avec un selfie de face, bien éclairé.</div>
+            <a class="btn-gold" href="/invite?selfie=1" style="width: auto; padding: 15px 28px; margin-top: 6px;">Essayer un autre selfie</a>
+            <a class="link-underline" href="/invite">Parcourir toutes les photos</a>
+          </div>
+        {% else %}
+          <div class="section-body">
+            <div class="results-grid">
+              {% for r in results %}
+              <a href="/photo/{{ r.photo_id }}" target="_blank" rel="noopener" class="result-tile">
+                <img src="/thumb/{{ r.thumb_id }}" loading="lazy" alt="photo">
+                <span class="score">{{ r.score }} % de similarité</span>
+              </a>
+              {% endfor %}
+            </div>
+            <a class="btn-download" href="/download/zip" style="margin-top: 16px;">Télécharger mes {{ results|length }} photos</a>
+            <a class="btn-outline-tan" href="/invite?selfie=1" style="margin-top: 10px;">Essayer un autre selfie</a>
+          </div>
+        {% endif %}
       </div>
-    {% elif results|length == 0 %}
-      <div class="empty">
-        <p>Aucune photo trouvée pour l'instant.</p>
-        <p>L'organisateur ajoute peut-être encore des photos — reviens plus tard, ou essaie avec un
-        autre selfie plus net.</p>
-      </div>
-      <a class="btn" href="/invite" style="margin-top:16px;">Réessayer</a>
-    {% else %}
-      <p class="subtitle">{{ results|length }} photo(s) trouvée(s). Touche une photo pour l'ouvrir en
-      grand et l'enregistrer.</p>
-      <div class="grid">
-        {% for r in results %}
-        <a href="/photo/{{ r.photo_id }}" target="_blank" rel="noopener">
-          <img src="/thumb/{{ r.thumb_id }}" loading="lazy" alt="photo">
-          <span class="score">{{ (r.score * 100) | round | int }}%</span>
-        </a>
-        {% endfor %}
-      </div>
-      <a class="btn" href="/invite" style="margin-top:24px;">Essayer un autre selfie</a>
-    {% endif %}
+    </div>
   </div>
 </body>
 </html>

@@ -4,59 +4,136 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ event_name }} — Organisateur</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <div class="wrap">
-    <h1>Ajouter les photos</h1>
-    <p class="subtitle">Sélectionne toutes les photos de l'événement (jusqu'à {{ max_photos }} au total).</p>
+  <div class="page-wrap">
+    <div class="app-shell">
+      <div>
+        <div class="top-dark">
+          <div class="admin-top-row">
+            <div>
+              <div class="admin-eyebrow">Espace organisateur</div>
+              <div class="admin-heading">Envoi des photos</div>
+            </div>
+            <a class="quit-link" href="/admin/upload">Quitter</a>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card gold">
+              <div class="stat-num" id="statPhotos">{{ stats.n_photos }}</div>
+              <div class="stat-label">photos indexées</div>
+            </div>
+            <div class="stat-card green">
+              <div class="stat-num" id="statFaces">{{ stats.n_faces }}</div>
+              <div class="stat-label">visages détectés</div>
+            </div>
+          </div>
+        </div>
 
-    <div class="stats">
-      <div class="stat"><b id="statPhotos">{{ stats.n_photos }}</b><span>photos indexées</span></div>
-      <div class="stat"><b id="statFaces">{{ stats.n_faces }}</b><span>visages détectés</span></div>
-    </div>
+        <div class="section-body">
+          <label class="dropzone" id="dropzone" for="fileInput">
+            <div class="dropzone-icon">+</div>
+            <div class="dropzone-title" id="dropzoneTitle">Sélectionner des photos</div>
+            <div class="dropzone-desc">JPG ou PNG, jusqu'à {{ max_photos }} photos par envoi. L'indexation démarre automatiquement.</div>
+            <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
+          </label>
 
-    <div class="card">
-      <div id="dropzone">Clique ici pour choisir des photos (sélection multiple possible)</div>
-      <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
-      <button id="startBtn" disabled>Envoyer les photos</button>
-      <div id="progress"></div>
+          <button class="btn-send" id="startBtn" disabled>Envoyer les photos</button>
+
+          <div class="progress-card" id="progressCard" hidden>
+            <div class="progress-head">
+              <div class="label" id="progressLabel">Lot 0 sur 0 en cours</div>
+              <div class="pct" id="progressPct">0 %</div>
+            </div>
+            <div class="progress-track"><div class="progress-fill" id="progressFill" style="width: 0%;"></div></div>
+            <div class="progress-detail" id="progressDetail"></div>
+          </div>
+
+          <div class="batches-block">
+            <div class="batches-eyebrow">Derniers lots</div>
+            <div id="batchesList">
+              {% if batches|length == 0 %}
+                <div class="empty-note">Aucun lot envoyé pour l'instant.</div>
+              {% else %}
+                {% for b in batches %}
+                <div class="batch-row">
+                  <div class="batch-info">
+                    <div class="label">{{ b.label }}</div>
+                    <div class="meta">{{ b.n_photos }} photos · {{ b.n_faces }} visages</div>
+                  </div>
+                  <div class="batch-status">{{ b.status }}</div>
+                </div>
+                {% endfor %}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-    <p class="footer-note">Le traitement (détection de visages) prend quelques secondes par lot. Ne
-    ferme pas cette page pendant l'envoi.</p>
   </div>
 
   <script>
     const dropzone = document.getElementById('dropzone');
+    const dropzoneTitle = document.getElementById('dropzoneTitle');
     const fileInput = document.getElementById('fileInput');
     const startBtn = document.getElementById('startBtn');
-    const progress = document.getElementById('progress');
+    const progressCard = document.getElementById('progressCard');
+    const progressLabel = document.getElementById('progressLabel');
+    const progressPct = document.getElementById('progressPct');
+    const progressFill = document.getElementById('progressFill');
+    const progressDetail = document.getElementById('progressDetail');
     const statPhotos = document.getElementById('statPhotos');
     const statFaces = document.getElementById('statFaces');
+    const batchesList = document.getElementById('batchesList');
 
     let files = [];
 
-    dropzone.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => {
       files = Array.from(fileInput.files);
-      dropzone.textContent = files.length + ' photo(s) sélectionnée(s)';
+      dropzoneTitle.textContent = files.length ? files.length + ' photo(s) sélectionnée(s)' : 'Sélectionner des photos';
       startBtn.disabled = files.length === 0;
     });
+
+    function renderBatches(batches) {
+      if (!batches || batches.length === 0) {
+        batchesList.innerHTML = '<div class="empty-note">Aucun lot envoyé pour l\'instant.</div>';
+        return;
+      }
+      batchesList.innerHTML = batches.map((b) => `
+        <div class="batch-row">
+          <div class="batch-info">
+            <div class="label">${b.label}</div>
+            <div class="meta">${b.n_photos} photos · ${b.n_faces} visages</div>
+          </div>
+          <div class="batch-status">${b.status}</div>
+        </div>
+      `).join('');
+    }
 
     const BATCH_SIZE = 12;
 
     startBtn.addEventListener('click', async () => {
       startBtn.disabled = true;
-      let done = 0, totalProcessed = 0, totalSkipped = 0;
       const total = files.length;
-      progress.style.display = 'block';
+      const totalBatches = Math.ceil(total / BATCH_SIZE);
+      let done = 0, totalProcessed = 0, totalSkipped = 0, batchIndex = 0;
+      progressCard.hidden = false;
 
       for (let i = 0; i < total; i += BATCH_SIZE) {
+        batchIndex += 1;
         const batch = files.slice(i, i + BATCH_SIZE);
         const fd = new FormData();
-        batch.forEach(f => fd.append('files', f));
+        batch.forEach((f) => fd.append('files', f));
 
-        progress.textContent = `Envoi en cours : ${done}/${total} photos…`;
+        progressLabel.textContent = `Lot ${batchIndex} sur ${totalBatches} en cours`;
+        const pctBefore = Math.round((done / total) * 100);
+        progressPct.textContent = pctBefore + ' %';
+        progressFill.style.width = pctBefore + '%';
+        progressDetail.textContent = `${done} photos envoyées sur ${total}`;
+
         try {
           const res = await fetch('/admin/upload', { method: 'POST', body: fd });
           const data = await res.json();
@@ -65,23 +142,31 @@
             totalSkipped += data.skipped;
             statPhotos.textContent = data.stats.n_photos;
             statFaces.textContent = data.stats.n_faces;
+            renderBatches(data.batches);
           } else {
-            progress.textContent = 'Erreur : ' + (data.detail || res.statusText);
+            progressLabel.textContent = 'Erreur';
+            progressDetail.textContent = data.detail || res.statusText;
+            startBtn.disabled = false;
             return;
           }
         } catch (e) {
-          progress.textContent = 'Erreur réseau, réessaie.';
+          progressLabel.textContent = 'Erreur réseau';
+          progressDetail.textContent = 'Réessaie.';
+          startBtn.disabled = false;
           return;
         }
         done += batch.length;
       }
 
-      progress.textContent = `Terminé : ${totalProcessed} photo(s) ajoutée(s)` +
+      progressLabel.textContent = 'Envoi terminé';
+      progressPct.textContent = '100 %';
+      progressFill.style.width = '100%';
+      progressDetail.textContent = `${totalProcessed} photo(s) ajoutée(s)` +
         (totalSkipped ? `, ${totalSkipped} ignorée(s) (illisibles).` : '.');
       startBtn.disabled = false;
       fileInput.value = '';
       files = [];
-      dropzone.textContent = 'Clique ici pour choisir d\'autres photos';
+      dropzoneTitle.textContent = 'Sélectionner des photos';
     });
   </script>
 </body>

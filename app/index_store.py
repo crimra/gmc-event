@@ -29,10 +29,20 @@ class PhotoEntry:
     n_faces: int = 0
 
 
+@dataclass
+class BatchEntry:
+    batch_id: str
+    label: str              # ex: "Lot du 06 sept. 2026 · 14h12"
+    n_photos: int
+    n_faces: int
+    status: str = "Indexé"
+
+
 class FaceIndex:
     def __init__(self):
         self.faces: List[FaceEntry] = []
         self.photos: dict[str, PhotoEntry] = {}
+        self.batches: List[BatchEntry] = []
         self._lock = threading.Lock()
 
     def add_photo(self, photo_id, original_filename, thumb_id, face_embeddings, bboxes):
@@ -45,6 +55,15 @@ class FaceIndex:
             )
             for emb, bbox in zip(face_embeddings, bboxes):
                 self.faces.append(FaceEntry(photo_id=photo_id, embedding=emb, bbox=bbox))
+
+    def add_batch(self, batch_id: str, label: str, n_photos: int, n_faces: int):
+        with self._lock:
+            self.batches.append(
+                BatchEntry(batch_id=batch_id, label=label, n_photos=n_photos, n_faces=n_faces)
+            )
+
+    def recent_batches(self, limit: int = 5) -> list:
+        return list(reversed(self.batches[-limit:]))
 
     def photo_exists(self, photo_id) -> bool:
         return photo_id in self.photos
@@ -72,7 +91,7 @@ class FaceIndex:
 
     def to_bytes(self) -> bytes:
         with self._lock:
-            return pickle.dumps({"faces": self.faces, "photos": self.photos})
+            return pickle.dumps({"faces": self.faces, "photos": self.photos, "batches": self.batches})
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "FaceIndex":
@@ -81,4 +100,5 @@ class FaceIndex:
             obj = pickle.loads(data)
             idx.faces = obj.get("faces", [])
             idx.photos = obj.get("photos", {})
+            idx.batches = obj.get("batches", [])
         return idx

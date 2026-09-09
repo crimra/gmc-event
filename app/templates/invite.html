@@ -4,66 +4,129 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ event_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <div class="wrap wide">
-    <h1>{{ event_name }}</h1>
-    <p class="subtitle">La galerie est ouverte. Tu peux parcourir les photos ou lancer une recherche par visage.</p>
+  <div class="page-wrap">
+    <div class="app-shell">
+      <div>
+        <div class="top-green">
+          <div class="top-row">
+            <div class="avatar-sm"><img src="/static/img/logo-gmc.png" alt="{{ event_name }}"></div>
+            <div class="top-title">
+              <div class="name">{{ event_name }}</div>
+              <div class="meta">{{ event_date }} · {{ total_photos }} photo{{ 's' if total_photos != 1 else '' }}</div>
+            </div>
+          </div>
+          <button type="button" class="btn-selfie-toggle" id="toggleSelfieBtn">Rechercher avec mon visage</button>
 
-    <div class="toolbar">
-      <button type="button" class="secondary-btn" id="toggleSearchBtn">Rechercher avec mon visage</button>
-    </div>
+          <div class="selfie-panel" id="selfiePanel" hidden>
+            <div class="selfie-hint">Prends un selfie bien éclairé, visage de face. Il sert uniquement à la recherche et n'est pas conservé.</div>
+            <form id="searchForm" method="post" action="/search" enctype="multipart/form-data">
+              <label class="selfie-drop" for="selfie">
+                <div class="selfie-drop-icon">◎</div>
+                <div class="selfie-drop-text">
+                  <div class="label" id="selfieLabel">Prendre un selfie</div>
+                  <div class="sub">Appareil photo ou galerie</div>
+                </div>
+                <input type="file" id="selfie" name="selfie" accept="image/*" capture="user" required style="display:none;">
+              </label>
+              <button class="btn-search" type="submit" id="submitBtn" style="margin-top: 14px;">Rechercher mes photos</button>
+            </form>
+          </div>
+        </div>
 
-    <div class="card search-panel" id="searchPanel" style="display: none; margin-bottom: 24px;">
-      <form id="searchForm" method="post" action="/search" enctype="multipart/form-data">
-        <label for="selfie">Choisis un selfie ou prends une photo en direct</label>
-        <input type="file" id="selfie" name="selfie" accept="image/*" capture="user" required>
-        <p class="hint">Visage bien visible, de face, dans un endroit lumineux — pour un meilleur résultat.</p>
-        <button type="submit" id="submitBtn">Rechercher mes photos</button>
-      </form>
-      <div id="progress">Recherche en cours…</div>
-    </div>
+        <div class="section-body">
+          <div class="section-heading">
+            <div class="title">Toutes les photos</div>
+            <div class="count">{{ total_photos }}</div>
+          </div>
 
-    <div class="gallery-header">
-      <h2>Galerie</h2>
-    </div>
-
-    {% if photos|length == 0 %}
-      <div class="empty">
-        <p>Aucune photo n’a encore été ajoutée à la galerie.</p>
-        <p>L’organisateur peut uploader les photos depuis l’espace admin.</p>
+          {% if photos|length == 0 %}
+            <div class="empty">
+              <p>Aucune photo n'a encore été ajoutée à la galerie.</p>
+              <p>L'organisateur peut uploader les photos depuis l'espace admin.</p>
+            </div>
+          {% else %}
+            <div class="gallery-grid" id="galleryGrid">
+              {% for photo in photos %}
+              <a href="/photo/{{ photo.photo_id }}" target="_blank" rel="noopener" class="gallery-tile">
+                <img src="/thumb/{{ photo.thumb_id }}" loading="lazy" alt="{{ photo.filename }}">
+                <span class="cap">{{ photo.filename }}</span>
+              </a>
+              {% endfor %}
+            </div>
+            <button type="button" class="btn-outline-green" id="loadMoreBtn" data-offset="{{ photos|length }}" {% if not has_more %}hidden{% endif %}>Charger plus de photos</button>
+          {% endif %}
+        </div>
       </div>
-    {% else %}
-      <div class="grid gallery-grid">
-        {% for photo in photos %}
-        <a href="/photo/{{ photo.photo_id }}" target="_blank" rel="noopener" class="gallery-item">
-          <img src="/thumb/{{ photo.thumb_id }}" loading="lazy" alt="{{ photo.filename }}">
-          <span class="caption">{{ photo.filename }}</span>
-        </a>
-        {% endfor %}
-      </div>
-    {% endif %}
+    </div>
   </div>
 
   <script>
+    const toggleBtn = document.getElementById('toggleSelfieBtn');
+    const panel = document.getElementById('selfiePanel');
+    const fileInput = document.getElementById('selfie');
+    const selfieLabel = document.getElementById('selfieLabel');
     const form = document.getElementById('searchForm');
-    const btn = document.getElementById('submitBtn');
-    const progress = document.getElementById('progress');
-    const searchPanel = document.getElementById('searchPanel');
-    const toggleBtn = document.getElementById('toggleSearchBtn');
+    const submitBtn = document.getElementById('submitBtn');
+
+    if (new URLSearchParams(location.search).get('selfie') === '1') {
+      panel.hidden = false;
+      toggleBtn.classList.add('open');
+      toggleBtn.textContent = 'Fermer la recherche';
+    }
 
     toggleBtn.addEventListener('click', () => {
-      const visible = searchPanel.style.display !== 'none';
-      searchPanel.style.display = visible ? 'none' : 'block';
-      toggleBtn.textContent = visible ? 'Rechercher avec mon visage' : 'Fermer la recherche';
+      const open = !panel.hidden;
+      panel.hidden = open;
+      toggleBtn.classList.toggle('open', !open);
+      toggleBtn.textContent = open ? 'Rechercher avec mon visage' : 'Fermer la recherche';
     });
 
-    if (form) {
-      form.addEventListener('submit', () => {
-        btn.disabled = true;
-        btn.textContent = 'Recherche…';
-        progress.style.display = 'block';
+    fileInput.addEventListener('change', () => {
+      const f = fileInput.files && fileInput.files[0];
+      selfieLabel.textContent = f ? f.name : 'Prendre un selfie';
+    });
+
+    form.addEventListener('submit', () => {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Recherche…';
+    });
+
+    const loadMoreBtn = document.getElementById('loadMoreBtn');
+    const grid = document.getElementById('galleryGrid');
+    if (loadMoreBtn) {
+      loadMoreBtn.addEventListener('click', async () => {
+        loadMoreBtn.disabled = true;
+        loadMoreBtn.textContent = 'Chargement…';
+        const offset = parseInt(loadMoreBtn.dataset.offset, 10);
+        try {
+          const res = await fetch(`/api/photos?offset=${offset}&limit={{ page_size }}`);
+          const data = await res.json();
+          for (const photo of data.photos) {
+            const a = document.createElement('a');
+            a.href = `/photo/${photo.photo_id}`;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.className = 'gallery-tile';
+            a.innerHTML = `<img src="/thumb/${photo.thumb_id}" loading="lazy" alt="${photo.filename}"><span class="cap">${photo.filename}</span>`;
+            grid.appendChild(a);
+          }
+          loadMoreBtn.dataset.offset = offset + data.photos.length;
+          if (!data.has_more) {
+            loadMoreBtn.hidden = true;
+          } else {
+            loadMoreBtn.disabled = false;
+            loadMoreBtn.textContent = 'Charger plus de photos';
+          }
+        } catch (e) {
+          loadMoreBtn.disabled = false;
+          loadMoreBtn.textContent = 'Réessayer';
+        }
       });
     }
   </script>

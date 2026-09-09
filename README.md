@@ -101,6 +101,8 @@ Dans le Space → **Settings → Variables and secrets**, ajoute (comme
 | Nom | Valeur |
 |---|---|
 | `EVENT_NAME` | Le nom de ton événement |
+| `EVENT_SUBTITLE` | Sous-titre affiché sous le nom (facultatif) |
+| `EVENT_LOCATION` | Lieu affiché en bas de l'écran d'accueil (facultatif) |
 | `EVENT_PASSWORD` | Mot de passe que tu donneras aux invités |
 | `ADMIN_PASSWORD` | Ton mot de passe organisateur (garde-le pour toi) |
 | `SESSION_SECRET` | Une longue chaîne aléatoire (ex. générée sur https://randomkeygen.com) |
