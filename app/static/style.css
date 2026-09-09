@@ -30,6 +30,12 @@
 
 * { box-sizing: border-box; }
 
+/* Une règle d'auteur (ex: .lightbox { display: flex }) l'emporte toujours sur
+   le style par défaut du navigateur pour [hidden], même à spécificité égale.
+   Sans ce garde-fou global, tout élément masqué via l'attribut `hidden` et
+   stylé avec `display: flex/grid/block` par ailleurs resterait visible. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -189,8 +195,8 @@ input::placeholder { color: #A79778; }
 .avatar-sm img { width: 42px; height: 42px; object-fit: cover; }
 .top-title { display: flex; flex-direction: column; min-width: 0; }
 .top-title .name {
-  font-family: 'Baloo 2', cursive; font-weight: 800; font-size: 22px; line-height: 1.1;
-  color: var(--cream); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: 'Baloo 2', cursive; font-weight: 800; font-size: 22px; line-height: 1.2;
+  color: var(--cream); text-transform: uppercase;
 }
 .top-title .meta { font-size: 12px; color: rgba(251,241,220,0.6); }
 
